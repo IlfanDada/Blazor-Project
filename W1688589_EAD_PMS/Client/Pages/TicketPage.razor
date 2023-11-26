@@ -1,0 +1,371 @@
+﻿@page "/tickets"
+@attribute [Authorize(Roles = "Admin,SubAdmin,Normal")]
+@inject IProjectService ProjectService
+@inject IMyService MyService
+@inject NavigationManager NavigationManager
+@inject ITicketService TicketService
+@inject IJSRuntime JSRuntime
+
+
+
+
+@if (ProjectCount.Count == 0)
+{
+    <div class="container-fluid py-3 my-0 text-center rounded" style="width: 70%; background-color: #393b50;">
+        <h2> <i class="oi oi-flag"></i> <strong> Please Create A Project To Access Kan Ban Board </strong></h2>
+    </div>
+}
+else
+{
+    <div class="container-fluid py-3 my-0 text-center rounded" style="width: 70%; background-color: #393b50;">
+        <h2> <i class="oi oi-file"></i> <strong> Kanban Board </strong></h2>
+        <select class="form-control" style="width:100%" id="projid" @onchange="OnChangeProject">
+            @if (ProjectCount.Count > 0)
+            {
+                @foreach (var i in ProjectCount)
+                {
+                    <option value="@i.ProjectId">@i.ProjectName</option>
+                }
+            }
+        </select>
+    </div>
+    <br />
+    <br />
+
+    <div class="container-fluid py-3 my-0 text-center rounded" style=" background-color: #32333f;">
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="card text-dark mb-3" style="max-width: 18rem; background-color: #2b2b36">
+                    <div class="text-white card-header">To-Do</div>
+                    <div class="card-body">
+                        @if (ToDoTicketList.Count > 0)
+                        {
+                            @foreach (var todo in ToDoTicketList)
+                            {
+                                <div class="border-1 mx-2 my-3 py-2 px-2 rounded " style="background-color: #4B4B54; color: white; ">
+                                    <b>@todo.TicketName</b><br />
+                                    <AuthorizeView Roles="Admin,SubAdmin,Normal">
+                                        <br />
+                                        <button class="btn btn-sm btn-dark" data-toggle="modal" data-target="#ticketModal" @onclick:preventDefault @onclick="@(() => TicketModel(todo.Card, todo.TicketId))"><i class="oi oi-reload"></i>  Edit</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="@(() => DeleteTicket(todo.TicketId))"><i class="oi oi-trash"></i> Delete</button>
+                                    </AuthorizeView>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <AuthorizeView Roles="Admin,SubAdmin,Normal">
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#ticketModal" @onclick="@(() => TicketModel("Todo", 0))" @onclick:preventDefault><i class="oi oi-plus"></i> Add New Ticket</button>
+                        </div>
+                    </AuthorizeView>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card text-dark  mb-3" style="max-width: 18rem; background-color: #2b2b36">
+                    <div class="text-white card-header">Doing</div>
+                    <div class="card-body">
+                        @if (DoingTicketList.Count > 0)
+                        {
+                            @foreach (var doing in DoingTicketList)
+                            {
+                                <div class="border-1 mx-2 my-3 py-2 px-2 rounded" style="background-color: #4B4B54; color: white;">
+                                    <b>@doing.TicketName</b>
+                                    <br />
+                                    <AuthorizeView Roles="Admin,SubAdmin,Normal">
+                                        <br />
+                                        <button class="btn btn-sm btn-dark" data-toggle="modal" data-target="#ticketModal" @onclick:preventDefault @onclick="@(() => TicketModel(doing.Card, doing.TicketId))"><i class="oi oi-reload"></i> Edit</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="@(() => DeleteTicket(doing.TicketId))"><i class="oi oi-trash"></i> Delete</button>
+                                    </AuthorizeView>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <AuthorizeView Roles="Admin,SubAdmin,Normal">
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#ticketModal" @onclick="@(() => TicketModel("Doing", 0))" @onclick:preventDefault><i class="oi oi-plus"></i> Add New Ticket</button>
+                        </div>
+                    </AuthorizeView>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card text-dark  mb-3" style="max-width: 18rem; background-color: #2b2b36">
+                    <div class="text-white card-header">Done</div>
+                    <div class="card-body">
+                        @if (DoneTicketList.Count > 0)
+                        {
+                            @foreach (var done in DoneTicketList)
+                            {
+                                <div class=" border-1 mx-2 my-3 py-2 px-2 rounded " style="background-color: #4B4B54; color: white; ">
+                                    <b>@done.TicketName</b><br />
+                                    <AuthorizeView Roles="Admin,SubAdmin,Normal">
+                                        <br />
+                                        <button class="btn btn-sm btn-dark" data-toggle="modal" data-target="#ticketModal" @onclick:preventDefault @onclick="@(() => TicketModel(done.Card, done.TicketId))"><i class="oi oi-reload"></i> Edit</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="@(() => DeleteTicket(done.TicketId))"><i class="oi oi-trash"></i> Delete</button>
+                                    </AuthorizeView>
+                                </div>
+
+                            }
+                        }
+                    </div>
+                    <AuthorizeView Roles="Admin,SubAdmin,Normal">
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#ticketModal" @onclick="@(() => TicketModel("Done", 0))" @onclick:preventDefault><i class="oi oi-plus"></i> Add New Ticket</button>
+                        </div>
+                    </AuthorizeView>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+<AuthorizeView Roles="Admin,SubAdmin,Normal">
+    <div class="modal fade" id="ticketModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+        <div class="modal-dialog" role="document" style="background-color: #282a39">
+            <div class="modal-content">
+                <div class="modal-header rounded-top" style="background-color: #282a39">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="background-color: #282a39">
+                    <form>
+                        <div class="form-group">
+                            <label for="HTMLworkspaceName">Ticket Name*</label>
+                            <input type="text" class="form-control" id="HTMLworkspaceName" @bind-value="@TName" />
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer rounded-bottom" style="background-color: #282a39">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="oi oi-arrow-thick-left"></i> Close</button>
+                    @if (btnTicket == "add")
+                    {
+                        <button type="button" data-dismiss="modal" class="btn btn-dark" @onclick="@(()=>CreateNewTicket(cardName))"><i class="oi oi-check"></i> Add</button>
+                    }
+                    @if (btnTicket == "edit")
+                    {
+                        <button type="button" data-dismiss="modal" class="btn btn-dark" @onclick="@(()=>UpdateTicket(TId))"><i class="oi oi-reload"></i>  Edit</button>
+                    }
+
+                </div>
+            </div>
+        </div>
+    </div>
+</AuthorizeView>
+@code {
+
+    [CascadingParameter]
+    public int WorkspaceId { get; set; }
+    public List<Project> ProjectCount = new List<Project>();
+    public List<Ticket> TicketList = new List<Ticket>();
+    public string Error = "display:none";
+    public string btnTicket = "add";
+    private int TId { get; set; }
+    private string TName { get; set; }
+    private bool IsCompleted { get; set; } = false;
+    public List<Ticket> ToDoTicketList = new List<Ticket>();
+    public List<Ticket> DoingTicketList = new List<Ticket>();
+    public List<Ticket> DoneTicketList = new List<Ticket>();
+
+
+    private List<string> SelectedUserList { get; set; } = new List<string>();
+
+
+    private List<string> OptionsList { get; set; } = new List<string>();
+    public List<ApplicationUser> userList = new List<ApplicationUser>();
+    public TicketMV ticketView = new TicketMV();
+    private string cardName { get; set; }
+    private string MoveTitle = "";
+    public int ProjId { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+
+        ProjectCount = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+        if (ProjectCount.Count > 0)
+        {
+            ProjId = ProjectCount.ElementAt(0).ProjectId;
+        }
+
+        TicketList = await TicketService.GetAllTicketbyProjectId(ProjId);
+        if (TicketList.Count > 0)
+        {
+            ToDoTicketList = TicketList.Where(x => x.Card == "Todo").ToList();
+            DoingTicketList = TicketList.Where(x => x.Card == "Doing").ToList();
+            DoneTicketList = TicketList.Where(x => x.Card == "Done").ToList();
+        }
+
+        IsCompleted = await TicketService.AreAllTicketsCompleted(ProjId);
+        StateHasChanged();
+
+        MyService.RefreshRequested += RefreshTicket;
+    }
+    private async void RefreshTicket(string s)
+    {
+        try
+        {
+            WorkspaceId = int.Parse(s);
+
+            ProjectCount = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+            if (ProjectCount.Count > 0)
+            {
+                ProjId = ProjectCount.ElementAt(0).ProjectId;
+            }
+            ToDoTicketList = new List<Ticket>();
+            DoingTicketList = new List<Ticket>();
+            DoneTicketList = new List<Ticket>();
+            TicketList = await TicketService.GetAllTicketbyProjectId(ProjId);
+            if (TicketList.Count > 0)
+            {
+                ToDoTicketList = TicketList.Where(x => x.Card == "Todo").ToList();
+                DoingTicketList = TicketList.Where(x => x.Card == "Doing").ToList();
+                DoneTicketList = TicketList.Where(x => x.Card == "Done").ToList();
+
+            }
+            IsCompleted = await TicketService.AreAllTicketsCompleted(ProjId);
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            StateHasChanged();
+            NavigationManager.NavigateTo("/tickets", forceLoad: true);
+        }
+    }
+
+
+
+    private async void TicketModel(string card, int id)
+    {
+        if (id == 0)
+        {
+            btnTicket = "add";
+            SelectedUserList = new List<string>();
+            OptionsList = new List<string>();
+            userList = new List<ApplicationUser>();
+            cardName = card;
+            TName = "";
+        }
+        else
+        {
+            TId = id;
+            btnTicket = "edit";
+            ticketView = new TicketMV();
+            ticketView = await TicketService.GetTicketById(id);
+            ProjId = ticketView.ProjectId;
+            TName = ticketView.TicketName;
+
+            OptionsList = new List<string>();
+
+            SelectedUserList = new List<string>();
+            foreach (var user in ticketView.UserList)
+            {
+
+                OptionsList.Add(user.Id);
+                SelectedUserList.Add(user.Email);
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async void CreateNewTicket(string name)
+    {
+        CreateTicketMV addTicket = new CreateTicketMV();
+        addTicket.Card = name;
+        addTicket.ProjectId = ProjId;
+        addTicket.UserList = new List<string>();
+        addTicket.UserList.AddRange(OptionsList);
+        addTicket.TicketName = TName;
+        var result = await TicketService.AddTickets(addTicket);
+        if (result != null)
+        {
+            ToDoTicketList = new List<Ticket>();
+            DoingTicketList = new List<Ticket>();
+            DoneTicketList = new List<Ticket>();
+            TicketList = await TicketService.GetAllTicketbyProjectId(ProjId);
+            if (TicketList.Count > 0)
+            {
+                ToDoTicketList = TicketList.Where(x => x.Card == "Todo").ToList();
+                DoingTicketList = TicketList.Where(x => x.Card == "Doing").ToList();
+                DoneTicketList = TicketList.Where(x => x.Card == "Done").ToList();
+
+            }
+
+            IsCompleted = await TicketService.AreAllTicketsCompleted(ProjId);
+            StateHasChanged();
+        }
+    }
+
+    private async void UpdateTicket(int id)
+    {
+        UpdateTicketMV edit = new UpdateTicketMV();
+        edit.TicketId = id;
+        edit.TicketName = TName;
+        edit.UserList = new List<string>();
+        edit.UserList.AddRange(OptionsList);
+        var result = await TicketService.UpdateTicket(edit);
+        if (result != null)
+        {
+            ToDoTicketList = new List<Ticket>();
+            DoingTicketList = new List<Ticket>();
+            DoneTicketList = new List<Ticket>();
+            TicketList = await TicketService.GetAllTicketbyProjectId(ProjId);
+            if (TicketList.Count > 0)
+            {
+                ToDoTicketList = TicketList.Where(x => x.Card == "Todo").ToList();
+                DoingTicketList = TicketList.Where(x => x.Card == "Doing").ToList();
+                DoneTicketList = TicketList.Where(x => x.Card == "Done").ToList();
+
+            }
+
+            IsCompleted = await TicketService.AreAllTicketsCompleted(ProjId);
+            StateHasChanged();
+        }
+    }
+    private async void DeleteTicket(int id)
+    {
+
+        await TicketService.DeleteTicket(id);
+        ToDoTicketList = new List<Ticket>();
+        DoingTicketList = new List<Ticket>();
+        DoneTicketList = new List<Ticket>();
+        TicketList = await TicketService.GetAllTicketbyProjectId(ProjId);
+        if (TicketList.Count > 0)
+        {
+            ToDoTicketList = TicketList.Where(x => x.Card == "Todo").ToList();
+            DoingTicketList = TicketList.Where(x => x.Card == "Doing").ToList();
+            DoneTicketList = TicketList.Where(x => x.Card == "Done").ToList();
+
+        }
+
+        IsCompleted = await TicketService.AreAllTicketsCompleted(ProjId);
+        StateHasChanged();
+    }
+    private async void onChangeUser(ChangeEventArgs arg)
+    {
+
+        userList = new List<ApplicationUser>();
+        userList = await TicketService.GetAllUsersbyProjectId(ProjId, arg.Value.ToString());
+        StateHasChanged();
+
+    }
+    private async void OnChangeProject(ChangeEventArgs arg)
+    {
+        if (arg.Value.ToString() != null)
+        {
+            TicketList = new List<Ticket>();
+            ToDoTicketList = new List<Ticket>();
+            DoingTicketList = new List<Ticket>();
+            DoneTicketList = new List<Ticket>();
+            ProjId = int.Parse(arg.Value.ToString());
+            TicketList = await TicketService.GetAllTicketbyProjectId(int.Parse(arg.Value.ToString()));
+            if (TicketList.Count > 0)
+            {
+                ToDoTicketList = new List<Ticket>();
+                DoingTicketList = new List<Ticket>();
+                DoneTicketList = new List<Ticket>();
+                ToDoTicketList = TicketList.Where(x => x.Card == "Todo").ToList();
+                DoingTicketList = TicketList.Where(x => x.Card == "Doing").ToList();
+                DoneTicketList = TicketList.Where(x => x.Card == "Done").ToList();
+
+            }
+            StateHasChanged();
+        }
+    }
+}

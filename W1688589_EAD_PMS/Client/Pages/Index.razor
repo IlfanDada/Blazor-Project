@@ -1,0 +1,26 @@
+﻿@page "/"
+
+
+
+
+
+
+<AuthorizeView>
+
+    <NotAuthorized>
+        <div class="container-fluid p-3 my-0 border text-center rounded" style="width: 85%; background-color: #32333f ">
+            <h1><strong>Create An Account or Sign In To Start Now</strong></h1>
+        </div>
+
+    </NotAuthorized>
+    <Authorized>
+
+
+
+
+        <div class="container-fluid p-3 my-0 border text-center rounded" style="width: 85%; background-color: #393b50">
+            <h1><strong>Sign In Successful</strong></h1>
+            <h2><strong> Welcome To The Project Management System, @context.User.Identity.Name!</strong></h2>
+        </div>
+    </Authorized>
+</AuthorizeView>

@@ -1,0 +1,192 @@
+﻿@page "/projects"
+@attribute [Authorize(Roles = "Admin,SubAdmin,Normal")]
+@inject IProjectService ProjectService
+@inject IWorkspaceService WorkspaceService
+@inject IMyService MyService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+<div class="row mb-3">
+
+
+    <div class="container-fluid p-3 my-0 text-center rounded" style="width: 85%; background-color: #393b50; border-color: black; ">
+        <h2> <i class="oi oi-folder"></i> <strong> My Projects </strong></h2>
+    </div>
+    <AuthorizeView Roles="Admin,SubAdmin">
+        <button type="button" class="btn btn-primary align-content-center text-md-center" style="width:15%" data-toggle="modal" data-target="#projectModal" @onclick="@(()=>ProjectModel(0))" @onclick:preventDefault>
+            <i class="oi oi-plus"></i>
+            Create Project
+        </button>
+    </AuthorizeView>
+
+
+
+
+
+    @if (projectList.Count > 0)
+    {
+        @foreach (var c in projectList)
+        {
+            <div class="col-sm-6 col-md-4 py-3 text-center ">
+                <div class="card" style="width: 300px; background-color: #393b50 ">
+                    <img class="card-img-top" src="/img/ProjectImage.jpg" alt="Card image" style="width:100%">
+                    <div class="card-body">
+                        <h4 class="card-title">@c.ProjectName</h4>
+                        <AuthorizeView Roles="Admin,SubAdmin">
+                            <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#projectModal" @onclick="@(()=>ProjectModel(c.ProjectId))" @onclick:preventDefault>
+                                <i class="oi oi-reload"></i>
+                                Edit
+                            </button>
+                            <button class="btn btn-danger" @onclick="@(()=>DeleteProject(c.ProjectId))">
+                                <i class="oi oi-trash"></i>
+                                Delete
+                            </button>
+                        </AuthorizeView>
+                    </div>
+                </div>
+            </div>
+
+        }
+    }
+    else
+    {
+
+    }
+</div>
+            <AuthorizeView Roles="Admin,SubAdmin">
+                <div class="modal fade" id="projectModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header rounded-top" style="background-color: #282a39">
+                                @if (btnProject == "add")
+                                {
+                                    <h5 class="modal-title" id="exampleModalLabel">Add Project</h5>
+                                }
+                                @if (btnProject == "edit")
+                                {
+                                    <h5 class="modal-title" id="exampleModalLabel">Edit Project</h5>
+                                }
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body" style="background-color: #282a39">
+                                <form>
+                                    <div class="form-group">
+                                        <label for="
+
+                                   Name">Name*</label>
+                                        <input type="text" class="form-control" id="HTMLworkspaceName" @bind-value="@project.ProjectName" />
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer rounded-bottom" style="background-color: #282a39">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="oi oi-arrow-thick-left"></i> Close</button>
+                                @if (btnProject == "add")
+                                {
+                                    <button type="button" data-dismiss="modal" class="btn btn-dark" @onclick="CreateNewProject"> <i class="oi oi-check"></i> Add</button>
+                                }
+                                @if (btnProject == "edit")
+                                {
+                            <button type="button" data-dismiss="modal" class="btn btn-dark" @onclick="@(()=>EditProject(project.ProjectId))"><i class="oi oi-reload"></i> Edit</button>
+                                }
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </AuthorizeView>
+            @code {
+
+                [CascadingParameter]
+                public int WorkspaceId { get; set; }
+    private string btnProject = "add";
+        private string Error = "display:none";
+        private List<Project> projectList { get; set; } = new List<Project>();
+
+        private Project project = new Project();
+
+        protected override async Task OnInitializedAsync()
+        {
+            projectList = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+
+            MyService.RefreshRequested += RefreshProject;
+        }
+        private async void RefreshProject(string s)
+        {
+            try
+            {
+                WorkspaceId = int.Parse(s);
+
+                projectList = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+                StateHasChanged();
+            }
+            catch (Exception)
+            {
+                StateHasChanged();
+                NavigationManager.NavigateTo("/projects", forceLoad: true);
+            }
+        }
+
+        private async Task ProjectModel(int id)
+        {
+            if (id == 0)
+            {
+                btnProject = "add";
+                project = new Project();
+            }
+            else
+            {
+                btnProject = "edit";
+                var cresult = await ProjectService.GetProjectById(id);
+                project = new Project();
+                project.WorkspaceId = cresult.WorkspaceId;
+                project.ProjectId = cresult.ProjectId;
+                project.ProjectName = cresult.ProjectName;
+            }
+        }
+        private async Task DeleteProject(int id)
+        {
+            await ProjectService.DeleteProject(id);
+            projectList = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+            StateHasChanged();
+        }
+        private async Task CreateNewProject()
+        {
+            if (project.ProjectName == "" || project.ProjectName == null)
+            {
+                Error = "display:block";
+            }
+            else
+            {
+                Error = "display:none";
+                ProjectMV projectView = new ProjectMV();
+                projectView.ProjectName = project.ProjectName;
+                if (WorkspaceId != 0)
+                {
+                    projectView.WorkspaceId = WorkspaceId;
+                }
+                var cresult = await ProjectService.CreateNewProject(projectView);
+                projectList = new List<Project>();
+                projectList = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+                StateHasChanged();
+
+            }
+        }
+        private async Task EditProject(int id)
+        {
+            if (project.ProjectName == "" || project.ProjectName == null)
+            {
+                Error = "display:block";
+            }
+            else
+            {
+                Error = "display:none";
+                project.ProjectId = id;
+                var result = await ProjectService.UpdateProject(project);
+                projectList = new List<Project>();
+                projectList = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+                StateHasChanged();
+
+            }
+        }
+            }

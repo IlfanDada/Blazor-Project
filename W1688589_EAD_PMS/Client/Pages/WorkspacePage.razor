@@ -1,0 +1,186 @@
+﻿@page "/workspaces"
+@inject IJSRuntime JSRuntime
+@inject IWorkspaceService WorkspaceService
+@inject IMyService MyService
+@inject IUpdateLayoutService UpdateLayoutService
+@attribute [Authorize(Roles = "Admin,SubAdmin,Normal")]
+<div class="row mb-3">
+
+    <div class="container-fluid p-3 my-0 text-center rounded" style="width: 85%; background-color: #393b50; border-color: black; ">
+        <h2> <i class="oi oi-people"></i> <strong> My Workspaces </strong></h2>
+    </div>
+    <AuthorizeView Roles="Admin,SubAdmin">
+        <button type="button" class="btn btn-primary align-content-center text-md-center" style="width:15%" data-toggle="modal" data-target="#WorkspaceModal" @onclick="@(()=>WorkspaceModel(0))" @onclick:preventDefault>
+            <i class="oi oi-plus"></i>
+            Create Workspace
+        </button>
+    </AuthorizeView>
+
+    @if (companies.Count > 0)
+    {
+        @foreach (var c in companies)
+        {
+
+
+
+            <div class="col-sm-6 col-md-4 py-3 text-center ">
+                <div class="card" style="width: 300px; background-color: #393b50">
+                    <img class="card-img-top" src="/img/WorkspaceImage.jpg" alt="Card image" style="width:100%">
+                    <div class="card-body">
+                        <h4 class="card-title">@c.WorkspaceName</h4>
+                        <p class="card-text">@c.WorkspaceDescription</p>
+                        <AuthorizeView Roles="Admin,SubAdmin">
+                            <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#WorkspaceModal" @onclick="@(()=>WorkspaceModel(c.WorkspaceId))" @onclick:preventDefault>
+                                <i class="oi oi-reload"></i>
+                                    Edit
+                            </button>
+                            <a href="#" class="btn btn-danger" @onclick="@(()=>DeleteWorkspace(c.WorkspaceId))" @onclick:preventDefault> <i class="oi oi-trash"></i> Delete</a>
+                        </AuthorizeView>
+                    </div>
+                </div>
+            </div>
+
+        }
+
+    }
+    else
+    {
+
+    }
+</div>
+            <AuthorizeView Roles="Admin,SubAdmin">
+                <div class="modal fade" id="WorkspaceModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header rounded-top" style="background-color: #282a39">
+                                @if (btnWorkspace == "add")
+                                {
+                                    <h5 class="modal-title text-center" id="exampleModalLabel">Add Workspace</h5>
+                                }
+                                @if (btnWorkspace == "edit")
+                                {
+                                    <h5 class="modal-title text-center" id="exampleModalLabel">Edit Workspace</h5>
+                                }
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body" style="background-color: #282a39">
+                                <form>
+     
+
+                     
+                                    <div class="form-group">
+                                        <label for="HTMLworkspaceName">Name*</label>
+                                        <input type="text" class="form-control" id="HTMLworkspaceName" @bind-value="Workspace.WorkspaceName" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="compDescri">Description</label>
+                                        <input type="text" class="form-control" id="compDescri" @bind-value="Workspace.WorkspaceDescription" />
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer rounded-bottom" style="background-color: #282a39">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="oi oi-arrow-thick-left"></i> Close</button>
+                                @if (btnWorkspace == "add")
+                                {
+                                    <button type="button" data-dismiss="modal" class="btn btn-primary" @onclick="CreateNewWorkspace"><i class="oi oi-check"></i> Add</button>
+                                }
+                                @if (btnWorkspace == "edit")
+                                {
+                                    <button type="button" data-dismiss="modal" class="btn btn-dark" @onclick="@(()=>EditWorkspace(Workspace.WorkspaceId))"><i class="oi oi-reload"></i> Edit</button>
+                                }
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </AuthorizeView>
+            @code {
+    private string btnWorkspace = "add";
+        private string Error = "display:none";
+        private List<Workspace> companies { get; set; } = new List<Workspace>();
+        private Workspace Workspace = new Workspace();
+        private string msg { get; set; }
+        protected override async Task OnInitializedAsync()
+        {
+
+            companies = await WorkspaceService.GetAllWorkspacesByUserId();
+        }
+
+        private async Task WorkspaceModel(int id)
+        {
+            msg = null;
+
+            if (id == 0)
+            {
+                btnWorkspace = "add";
+                Workspace = new Workspace();
+            }
+
+            else
+            {
+                btnWorkspace = "edit";
+
+                var cresult = await WorkspaceService.GetWorkspaceById(id);
+                Workspace = new Workspace();
+                Workspace.WorkspaceId = cresult.WorkspaceId;
+                Workspace.WorkspaceName = cresult.WorkspaceName;
+                Workspace.WorkspaceDescription = cresult.WorkspaceDescription;
+            }
+        }
+
+        private async Task EditWorkspace(int id)
+        {
+            if (string.IsNullOrEmpty(Workspace.WorkspaceName) || string.IsNullOrEmpty(Workspace.WorkspaceDescription))
+            {
+                Error = "display:block";
+            }
+            else
+            {
+                Error = "display:none";
+                Workspace.WorkspaceId = id;
+
+                var result = await WorkspaceService.UpdateWorkspace(Workspace);
+                if (result != null)
+                {
+                    msg = "Workspace Has Been Updated in The Database";
+                }
+                companies = new List<Workspace>();
+                companies = await WorkspaceService.GetAllWorkspacesByUserId();
+
+                UpdateLayoutService.CallUpdateRequestRefresh();
+            }
+        }
+        private async Task CreateNewWorkspace()
+        {
+            if (string.IsNullOrEmpty(Workspace.WorkspaceName) || string.IsNullOrEmpty(Workspace.WorkspaceDescription))
+            {
+                Error = "display:block";
+            }
+            else
+            {
+                Error = "display:none";
+                WorkspaceMV WorkspaceView = new WorkspaceMV();
+                WorkspaceView.WorkspaceName = Workspace.WorkspaceName;
+                WorkspaceView.WorkspaceDescription = Workspace.WorkspaceDescription;
+                var cresult = await WorkspaceService.CreateNewWorkspace(WorkspaceView);
+                if (!string.IsNullOrEmpty(cresult))
+                {
+                    msg = "Workspace Added to The Database";
+                }
+                companies = new List<Workspace>();
+                companies = await WorkspaceService.GetAllWorkspacesByUserId();
+
+
+                UpdateLayoutService.CallUpdateRequestRefresh();
+            }
+        }
+        private async Task DeleteWorkspace(int id)
+        {
+            await WorkspaceService.DeleteWorkspace(id);
+            companies = await WorkspaceService.GetAllWorkspacesByUserId();
+            UpdateLayoutService.CallUpdateRequestRefresh();
+            StateHasChanged();
+        }
+            }

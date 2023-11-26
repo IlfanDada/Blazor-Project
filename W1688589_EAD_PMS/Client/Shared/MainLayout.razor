@@ -1,0 +1,110 @@
+﻿@inherits LayoutComponentBase
+@inject IWorkspaceService WorkspaceService
+@inject IJSRuntime JSRuntime
+@inject IUpdateLayoutService UpdateLayoutService
+@inject IMyService MyService
+<div class="page">
+    <div style="background-image:none;background-color:#393b50;" class="sidebar">
+        <NavMenu Cid="@WorkspaceId" />
+    </div>
+
+    
+
+    <div style="background-image: none; color:white; background-color: #282a39; border-color:black; font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif" class="main">
+        <div class="top-row px-4 auth" style="background-color: #393b50; font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif">
+            <AuthorizeView Roles="Admin,SubAdmin">
+                @if (WorkspaceViewList.Count > 0)
+                {
+                    <h6 class="pt-2">Workspace:  </h6>
+                    <select class="form-control align-content-lg-stretch" id="WorkspacelistId" @onchange="OnChangeWorkspace">
+                        @foreach (var c in WorkspaceViewList)
+                        {
+                            <option value="@c.WorkspaceId">@c.WorkspaceName</option>
+                        }
+                    </select>
+                }
+                else
+                {
+
+                }
+            </AuthorizeView>
+            <LoginDisplay />
+        </div>
+        <div class="content px-4">
+
+            <CascadingValue Value="@WorkspaceId">
+                @Body
+            </CascadingValue>
+        </div>
+    </div>
+</div>
+
+@code{
+   
+    public int WorkspaceId { get; set; } = 0;
+    private List<Workspace> WorkspaceViewList { get; set; } = new List<Workspace>();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            
+            await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/jquery/jquery.js");
+            await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/bootstrap.js");
+        }
+
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+           
+            WorkspaceViewList = await WorkspaceService.GetAllWorkspacesByUserId();
+            if (WorkspaceViewList.Count > 0)
+            {
+                WorkspaceId = WorkspaceViewList.ElementAt(0).WorkspaceId;
+            }
+            else
+            {
+                WorkspaceId = 0;
+            }
+            StateHasChanged();
+        }
+        catch (AccessTokenNotAvailableException)
+        {
+           
+            WorkspaceId = 0;
+            WorkspaceViewList = new List<Workspace>();
+            StateHasChanged();
+        }
+       
+        UpdateLayoutService.UpdateRequested += UpdateMe;
+    }
+    private async void UpdateMe()
+    {
+       
+        WorkspaceViewList = await WorkspaceService.GetAllWorkspacesByUserId();
+        if (WorkspaceViewList.Count > 0)
+        {
+            WorkspaceId = WorkspaceViewList.ElementAt(0).WorkspaceId;
+        }
+        else
+        {
+            WorkspaceId = 0;
+        }
+        StateHasChanged();
+    }
+    private void OnChangeWorkspace(ChangeEventArgs arg)
+    {
+      
+        WorkspaceId = int.Parse(arg.Value.ToString());
+
+  
+        MyService.CallRequestRefresh(arg.Value.ToString());
+        StateHasChanged();
+    }
+    private void RefreshMe()
+    {
+        StateHasChanged();
+    }
+}

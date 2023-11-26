@@ -1,0 +1,365 @@
+﻿@page "/usermanager"
+@inject IProjectService ProjectService
+@inject IMyService MyService
+@inject IUserService userServices
+@inject IWorkspaceService WorkspaceService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = "Admin,SubAdmin,Normal")]
+<div class="row mb-3">
+
+
+    <div class="container-fluid p-3 m-0  text-center rounded" style="width: 85%; background-color: #393b50; ">
+        <h2> <i class="oi oi-terminal"></i> <strong>User Manager</strong></h2>
+    </div>
+    
+
+    <AuthorizeView Roles="Admin,SubAdmin">
+        <button type="button" class="btn btn-primary align-content-center text-md-center" style="width:15%" data-toggle="modal" data-target="#userModal" @onclick="@(()=>UserModel("0"))" @onclick:preventDefault>
+            <i class="oi oi-plus"></i>
+            Create New User
+        </button>
+    </AuthorizeView>
+
+    <div class="container-fluid bg-transparent rounded p-3 my-0  text-center ">
+        <div class="form-group">
+            <h5> <i class="oi oi-magnifying-glass"></i> Search User By Email</h5>
+            <input type="text" class="form-control align-content-lg-stretch" autocomplete="off" id="HTMLworkspaceName" @oninput="onChangeUser" />
+        </div>
+    </div>
+
+</div>
+<div class="">
+    <table class="table rounded  table-striped table-dark  table-hover" style="border-color: black; color: white;  border-width:4px;">
+        <thead>
+            <tr>
+                <th scope="col">Email</th>               
+                <th scope="col">Project</th>
+                <th scope="col">Is Admin?</th>               
+                <AuthorizeView Roles="Admin,SubAdmin">
+                    <th scope="col">Authorisation</th>
+                </AuthorizeView>
+            </tr>
+        </thead>
+        <tbody>
+            @if (displayList.Count > 0)
+            {
+                @foreach (var usr in displayList)
+                {
+                    <tr>
+                        <th scope="row">@usr.Email</th>
+
+                        @if (usr.ProjectName != null)
+                        {
+                            <td>@usr.ProjectName</td>
+                        }
+                        else
+                        {
+                            <td> </td>
+                        }
+                        <AuthorizeView Roles="Admin">
+                            @if (usr.Role == "Admin")
+                            {
+                                <td>
+                                    <div class="form-check">
+                                        <label class="form-check-label">
+                                            <input type="checkbox" disabled checked="checked" id="@usr.UserId" @onchange="eventArgs => { IsAdminCheckboxClicked(usr.UserId, eventArgs.Value); }">
+                                        </label>
+                                    </div>
+                                </td>
+                            }
+                            else if (usr.Role == "SubAdmin")
+                            {
+                                <td>
+                                    <div class="form-check">
+                                        <label class="form-check-label">
+                                            <input type="checkbox" checked="checked" id="@usr.UserId" @onchange="eventArgs => { IsAdminCheckboxClicked(usr.UserId, eventArgs.Value); }">
+                                        </label>
+                                    </div>
+                                </td>
+                            }
+                            else
+                            {
+                                <td>
+                                    <div class="form-check">
+                                        <label class="form-check-label">
+                                            <input type="checkbox"  id="@usr.UserId" @onchange="eventArgs => { IsAdminCheckboxClicked(usr.UserId, eventArgs.Value); }">
+                                        </label>
+                                    </div>
+                                </td>
+                            }
+                        </AuthorizeView>
+                        <AuthorizeView Roles="SubAdmin,Normal">
+                            @if (usr.Role == "Admin" || usr.Role == "SubAdmin")
+                            {
+                                <td>
+                                    <p>Admin</p>
+                                </td>
+                            }
+                            else
+                            {
+                                <td>
+                                    <p>Normal</p>
+                                </td>
+                            }
+                        </AuthorizeView>
+ 
+                        <AuthorizeView Roles="Admin">
+                            @if (usr.Role != "Admin")
+                            {
+                                <td>
+                                    <button class="btn btn-danger" @onclick="@(()=>DeleteUser(usr.UserId))">
+                                        <i class="oi oi-trash"></i> Remove
+                                    </button>
+                                    <button class="btn btn-dark" data-toggle="modal" data-target="#userModal" @onclick="@(()=>UserModel(usr.UserId))">
+                                        <i class="oi oi-reload"></i> Edit
+                                    </button>
+                                </td>
+                            }
+                        </AuthorizeView>
+                        <AuthorizeView Roles="SubAdmin">
+                            @if (usr.Role != "Admin" && usr.Role != "SubAdmin")
+                            {
+                                <td>
+                                    <button class="btn btn-danger" @onclick="@(()=>DeleteUser(usr.UserId))">
+                                        <i class="oi oi-trash"></i> Delete
+                                    </button>
+                                    <button class="btn btn-dark" data-toggle="modal" data-target="#userModal" @onclick="@(()=>UserModel(usr.UserId))">
+                                        <i class="oi oi-reload"></i> Edit
+                                    </button>
+                                </td>
+                            }
+                        </AuthorizeView>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5">User Does Not Exist</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<AuthorizeView Roles="Admin,SubAdmin">
+
+    <div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header rounded-top" style="background-color: #282a39">
+                    @if (btnUser == "add")
+                    {
+                        <h5 class="modal-title" id="exampleModalLabel">Create User</h5>
+                    }
+                    @if (btnUser == "edit")
+                    {
+                        <h5 class="modal-title" id="exampleModalLabel">Edit User</h5>
+                    }
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="background-color: #282a39">
+                    <form>
+                        <div class="form-group">
+                            <label for="email">Email*</label>
+                            <input type="email" class="form-control" id="email" @bind-value="@userView.Email" />
+                        </div>
+                        @if (btnUser == "add")
+                        {
+                            <div class="form-group">
+                                <label for="password">Password*</label>
+                                <input type="text" class="form-control" id="password" @bind-value="@userView.Password" />
+                            </div>
+                        }
+                        <div class="row">
+                            <div class="form-group col-6">
+                                <label for="projid">Project</label>
+                                <select class="form-control" id="projid" @bind="@userView.ProjectId">
+                                    @foreach (var i in ProjectCount)
+                                    {
+                                        <option value="@i.ProjectId">@i.ProjectName</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+                <div class="modal-footer rounded-bottom" style="background-color: #282a39">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="oi oi-arrow-thick-left"></i> Close</button>
+                    @if (btnUser == "add")
+                    {
+                        <button type="button" class="btn btn-dark" @onclick="AddUser"><i class="oi oi-check"></i> Add</button>
+                    }
+                    @if (btnUser == "edit")
+                    {
+                        <button type="button" class="btn btn-dark" @onclick="@(()=>EditUser(Userid))"> <i class="oi oi-reload"></i> Edit</button>
+                    }
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</AuthorizeView>
+@code {
+
+    [CascadingParameter]
+    public int WorkspaceId { get; set; }
+
+    private string Error = "display:none";
+    private string ErrorMessage = "";
+    private string Success = "display:none";
+    private string SuccessMessage = "";
+    private string btnUser = "add";
+    private string Userid = "";
+    public UserMV userView { get; set; } = new UserMV();
+    public List<ReadUserMV> displayList = new List<ReadUserMV>();
+    public List<Project> ProjectCount = new List<Project>();
+    private List<Workspace>
+
+
+
+        List { get; set; } = new List<Workspace>();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        displayList = await userServices.GetAllWorkspaceUser(WorkspaceId);
+
+        MyService.RefreshRequested += RefreshProject;
+    }
+
+    private async void RefreshProject(string s)
+    {
+        try
+        {
+            WorkspaceId = int.Parse(s);
+            displayList = await userServices.GetAllWorkspaceUser(WorkspaceId);
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            StateHasChanged();
+            NavigationManager.NavigateTo("/usrbers", forceLoad: true);
+        }
+    }
+
+
+    public async Task UserModel(string id)
+    {
+        ProjectCount = new List<Project>();
+        ProjectCount = await ProjectService.GetAllProjectsByWorkspaceId(WorkspaceId);
+
+        if (id == "0")
+        {
+            btnUser = "add";
+            userView = new UserMV();
+            userView.WorkspaceId = WorkspaceId;
+            if (ProjectCount.Count > 0)
+            {
+                userView.ProjectId = (int)ProjectCount.ElementAt(0).ProjectId;
+            }
+        }
+
+        else
+        {
+            userView = new UserMV();
+            btnUser = "edit";
+            var res = await userServices.GetUserById(id);
+            userView.WorkspaceId = WorkspaceId;
+            Userid = res.Id;
+            userView.Email = res.Email;
+            if (res.ProjectId != null)
+            {
+                userView.ProjectId = res.ProjectId;
+            }
+            else
+            {
+                if (ProjectCount.Count > 0)
+                {
+                    userView.ProjectId = (int)ProjectCount.ElementAt(0).ProjectId;
+                }
+                else
+                {
+                    userView.ProjectId = null;
+                }
+            }
+        }
+        StateHasChanged();
+    }
+    public async Task AddUser()
+    {
+        string message = await userServices.CreateNewUser(userView);
+        if (message == "Duplicate")
+        {
+            Success = "display:none";
+            ErrorMessage = "Email Already Exists In The Database";
+            Error = "display:block";
+        }
+        if (message == "Added")
+        {
+            Error = "display:none";
+            SuccessMessage = "usrber Added";
+            Success = "display:block";
+        }
+        displayList = await userServices.GetAllWorkspaceUser(WorkspaceId);
+        StateHasChanged();
+    }
+
+
+    private async void IsAdminCheckboxClicked(string UserRole, object checkedValue)
+    {
+        if ((bool)checkedValue)
+        {
+
+            await userServices.ChangeRole(UserRole, "SubAdmin");
+        }
+        else
+        {
+
+            await userServices.ChangeRole(UserRole, "Normal");
+        }
+    }
+
+    private async void EditUser(string id)
+    {
+        UpdateUserMV model = new UpdateUserMV();
+        model.UserId = id;
+        model.Email = userView.Email;
+        model.ProjectId = userView.ProjectId;
+        var msg = await userServices.UpdateUser(model);
+        if (msg == "AlreadyExist")
+        {
+            Success = "display:none";
+            ErrorMessage = "User Already Exists in the Database";
+            Error = "display:block";
+        }
+        if (msg == "updated")
+        {
+            Error = "display:none";
+            SuccessMessage = "User Project Updated";
+            Success = "display:block";
+        }
+        displayList = await userServices.GetAllWorkspaceUser(WorkspaceId);
+        StateHasChanged();
+    }
+
+    private async Task DeleteUser(string id)
+    {
+
+        await userServices.DeleteUser(id);
+
+        displayList = await userServices.GetAllWorkspaceUser(WorkspaceId);
+        StateHasChanged();
+    }
+
+    private async void onChangeUser(ChangeEventArgs arg)
+    {
+        displayList = new List<ReadUserMV>();
+        displayList = await userServices.SearchUsers(WorkspaceId, arg.Value.ToString());
+        StateHasChanged();
+    }
+}

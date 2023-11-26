@@ -1,0 +1,11 @@
+﻿@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+<!--
+    The RemoteAuthenticatorView component:
+Is provided by the Microsoft.AspNetCore.Components.WebAssembly.Authentication package.
+Manages performing the appropriate actions at each stage of authentication.-->
+<RemoteAuthenticatorView Action="@Action" />
+
+@code{
+    [Parameter] public string Action { get; set; }
+}
